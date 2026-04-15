@@ -3,6 +3,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[french]{babel}
+\usepackage{lmodern}
 \usepackage{amsmath,amssymb,amsthm,mathtools,bm}
 \usepackage{geometry}
 \usepackage{hyperref}
@@ -11,14 +12,14 @@
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{float}
-\usepackage{csquotes}
+\usepackage{longtable}
 
-\geometry{margin=2.35cm}
-\setstretch{1.16}
+\geometry{margin=2.3cm}
+\setstretch{1.19}
 \setlength{\parskip}{0.45em}
 \setlength{\parindent}{0pt}
 
-\title{Lecture critique approfondie\\
+\title{Rapport approfondi de lecture et d'analyse critique\\
 \large \emph{Hawkes Processes in Finance} (Bacry, Mastromatteo, Muzy)}
 \author{M2 Quantitative Finance}
 \date{\today}
@@ -27,218 +28,478 @@
 \maketitle
 
 \begin{abstract}
-Ce rapport propose une lecture détaillée de l'article de Bacry, Mastromatteo et Muzy consacré aux processus de Hawkes en finance. L'objectif est double. D'une part, reconstruire la logique du papier en explicitant le lien entre microstructure de marché, modélisation en temps continu et estimation statistique. D'autre part, formuler une analyse personnelle argumentée sur la valeur pratique du cadre, ses limites empiriques et ses extensions crédibles pour la recherche quantitative. La présentation est organisée en deux parties : une synthèse théorique puis une discussion critique.
+Ce document propose une lecture detaillee de l'article \emph{Hawkes Processes in Finance} et une discussion critique personnelle, dans un format long de type rapport de master. Le fil directeur est volontairement conserve en deux grandes parties: (i) synthese structurante du papier, avec developpement progressif du modele, des enjeux d'estimation et des questions de sampling ; (ii) analyse personnelle portant sur les points forts, les limites et des pistes d'extension. L'accent est mis sur l'interpretation economique des quantites mathematiques, sur la robustesse empirique et sur la transposition vers des applications de trading et de gestion du risque.
 \end{abstract}
 
 \tableofcontents
 \newpage
 
-\section*{PARTIE I --- Synthèse structurée de l'article}
-\addcontentsline{toc}{section}{PARTIE I --- Synthèse structurée de l'article}
+\section*{PARTIE I --- Synthese du papier}
+\addcontentsline{toc}{section}{PARTIE I --- Synthese du papier}
 
-\subsection*{1. Contexte général : pourquoi Hawkes en finance ?}
-\addcontentsline{toc}{subsection}{1. Contexte général : pourquoi Hawkes en finance ?}
+\subsection*{1. Positionnement du papier dans la litterature de microstructure}
+\addcontentsline{toc}{subsection}{1. Positionnement du papier dans la litterature de microstructure}
 
-L'article s'inscrit dans un constat empirique simple mais fondamental : les événements financiers observés à haute fréquence ne sont pas distribués comme des arrivées indépendantes. Les transactions, les modifications de carnet et les variations de prix apparaissent par salves. Lorsqu'un événement se produit, la probabilité d'en observer d'autres augmente immédiatement, puis décroît graduellement. Ce comportement invalide les modèles de Poisson homogènes et motive des processus ponctuels à mémoire.
+Le papier de Bacry, Mastromatteo et Muzy arrive dans un contexte ou la modelisation haute frequence faisait face a une contradiction pratique. D'un cote, les donnees de marche etaient de plus en plus fines, avec des horodatages de haute precision et des carnets d'ordres reconstruits presque evenement par evenement. De l'autre, de nombreux modeles restaient bases sur des hypotheses proches de l'independance locale, en particulier des versions simplifiees du Poisson.
 
-L'idée directrice des auteurs est de représenter le marché comme un système \enquote{réactif}, où une part importante de l'activité est générée de manière endogène. La question n'est plus seulement \enquote{combien d'événements ?}, mais \enquote{quelle fraction est déclenchée par l'histoire récente du marché ?}. Les processus de Hawkes offrent précisément cette décomposition.
+Or, les series d'evenements de marche montrent des signatures empiriques robustes:
+\begin{itemize}[leftmargin=1.2cm]
+    \item les transactions arrivent en grappes, et non a rythme constant ;
+    \item les changements de prix se concentrent dans des episodes d'activite intense ;
+    \item les flux buy/sell et les modifications de liquidite sont mutuellement dependants ;
+    \item l'effet des nouvelles externes ne suffit pas a expliquer tout le volume d'activite.
+\end{itemize}
 
-\subsection*{2. Processus ponctuels : rappel minimal et transition vers Hawkes}
-\addcontentsline{toc}{subsection}{2. Processus ponctuels : rappel minimal et transition vers Hawkes}
+Le cadre Hawkes repond directement a cette realite: il encode une dependance causale conditionnelle entre evenements passes et intensite future. Le papier propose donc plus qu'un outil de fit ; il introduit une grammaire pour quantifier l'endogeneite des marches electroniques.
 
-Soit $N_t$ le nombre d'événements observés jusqu'au temps $t$. En temps continu, la variable clé est l'intensité conditionnelle $\lambda_t$, définie (informellement) comme :
+\subsection*{2. De la notion d'intensite conditionnelle a l'auto-excitation}
+\addcontentsline{toc}{subsection}{2. De la notion d'intensite conditionnelle a l'auto-excitation}
+
+On note $N_t$ le nombre d'evenements jusqu'au temps $t$ et $\mathcal{F}_t$ l'information disponible juste avant $t$. L'objet central est l'intensite conditionnelle:
 \[
-\lambda_t = \lim_{\Delta t \downarrow 0}\frac{\mathbb{P}(N_{t+\Delta t}-N_t=1\mid\mathcal{F}_t)}{\Delta t}.
+\lambda_t = \lim_{\Delta t\downarrow 0}\frac{\mathbb{P}(N_{t+\Delta t}-N_t=1\mid\mathcal{F}_t)}{\Delta t}.
 \]
-Dans un Poisson homogène, $\lambda_t$ est constante. Dans un Hawkes, elle dépend de l'historique $\mathcal{F}_t$ via une composante d'excitation.
+Cette quantite est interpretee comme une probabilite instantanee d'occurrence.
 
-\paragraph{Modèle univarié.}
+Dans un Poisson homogene, $\lambda_t=\lambda$ est constante: la memoire du passe est nulle. Dans un Hawkes univarie, on pose:
 \begin{equation}
-\lambda_t=\mu+\sum_{t_i<t}\phi(t-t_i),
-\label{eq:hawkes_univ}
+\lambda_t = \mu + \sum_{t_i<t}\phi(t-t_i),
+\label{eq:hawkes_uni}
 \end{equation}
-où $\mu>0$ est un niveau de base et $\phi(\cdot)\ge0$ un noyau causal.
+avec $\mu>0$ et $\phi:\mathbb{R}_+\to\mathbb{R}_+$.
 
-\textbf{Lecture intuitive.} Chaque événement passé ajoute un \enquote{surcroît temporaire} d'intensité. Le marché garde une mémoire, plus forte à court terme puis décroissante.
+L'intuition est simple mais tres puissante:
+\begin{itemize}[leftmargin=1.2cm]
+    \item $\mu$ represente un flux de fond, souvent associe aux informations exogenes ;
+    \item chaque evenement passe ajoute une sur-intensite transitoire ;
+    \item la forme de $\phi$ determine l'horizon de memoire du systeme.
+\end{itemize}
 
-\subsection*{3. De l'auto-excitation à l'interaction multivariée}
-\addcontentsline{toc}{subsection}{3. De l'auto-excitation à l'interaction multivariée}
+Cette architecture produit naturellement du clustering temporel, signature que les donnees haute frequence affichent presque systematiquement.
 
-La contribution majeure en finance est multivariée : on distingue plusieurs types d'événements (buy market orders, sell market orders, up/down moves, etc.). Pour $d$ composantes :
+\subsection*{3. Interpretation en processus de branchement}
+\addcontentsline{toc}{subsection}{3. Interpretation en processus de branchement}
+
+Le papier insiste sur une lecture genealogique. Un evenement peut etre:
+\begin{enumerate}[leftmargin=1.2cm]
+    \item immigrant (genere par la composante de fond $\mu$) ;
+    \item descendant (declenche par un evenement precedent).
+\end{enumerate}
+
+Le \emph{branching ratio}
+\[
+n=\int_0^\infty \phi(u)\,du
+\]
+est le nombre moyen de descendants directs d'un evenement type. La stabilite exige $n<1$ en univarie.
+
+Pourquoi cette quantite est-elle centrale en finance ?
+\begin{itemize}[leftmargin=1.2cm]
+    \item si $n$ est faible, l'activite est majoritairement exogene ;
+    \item si $n$ est proche de $1$, les boucles de reaction internes dominent ;
+    \item en regime quasi critique, un choc local peut produire de longues cascades.
+\end{itemize}
+
+Dans la litterature inspiree par ce papier, ce parametre est devenu un indicateur pratique de \emph{reflexivite} du marche.
+
+\subsection*{4. Passage multivarie: interactions entre evenements heterogenes}
+\addcontentsline{toc}{subsection}{4. Passage multivarie: interactions entre evenements heterogenes}
+
+Les marches electroniques impliquent plusieurs flux simultanes. Le cadre multivarie ecrit:
 \begin{equation}
-\lambda_i(t)=\mu_i+\sum_{j=1}^d\int_0^t \phi_{ij}(t-s)\,dN_j(s),\quad i=1,\dots,d.
+\lambda_i(t)=\mu_i+\sum_{j=1}^{d}\int_0^t \phi_{ij}(t-s)\,dN_j(s),\quad i=1,\dots,d.
 \label{eq:hawkes_multi}
 \end{equation}
 
-Le noyau $\phi_{ij}$ mesure l'effet de $j$ sur $i$ : auto-excitation si $i=j$, cross-excitation sinon.
+Chaque noyau $\phi_{ij}$ encode la reaction de la composante $i$ aux evenements du canal $j$:
+\begin{itemize}[leftmargin=1.2cm]
+    \item auto-excitation si $i=j$ ;
+    \item cross-excitation si $i\neq j$.
+\end{itemize}
 
-On définit la matrice de branchement :
+On definit la matrice de branchement:
 \[
-G_{ij}:=\int_0^{\infty}\phi_{ij}(u)\,du.
+G_{ij}=\int_0^\infty \phi_{ij}(u)\,du.
 \]
-La stabilité stationnaire exige :
+La condition de stabilite stationnaire est:
 \[
 \rho(G)<1,
 \]
-où $\rho(G)$ est le rayon spectral.
+ou $\rho(G)$ est le rayon spectral.
 
-\textbf{Intuition forte.} Le système agit comme un mécanisme de reproduction : chaque événement \enquote{engendre} en moyenne d'autres événements selon $G$. Si la reproduction moyenne est trop proche de 1 (ou dépasse 1), l'activité peut devenir quasi-critique (ou instable).
+Le gain economique est majeur: au lieu d'observer seulement une correlation globale, on obtient une carte directionnelle des influences (par exemple: \emph{buy market order} $\rightarrow$ \emph{upward mid-price move}).
 
-\subsection*{4. Décomposition exogène/endogène et réflexivité}
-\addcontentsline{toc}{subsection}{4. Décomposition exogène/endogène et réflexivité}
+\subsection*{5. Choix des noyaux: flexibilite, interpretablite et memoire}
+\addcontentsline{toc}{subsection}{5. Choix des noyaux: flexibilite, interpretablite et memoire}
 
-Dans le cas univarié, le branching ratio
+Le papier discute plusieurs familles de noyaux, chacune avec des compromis differents.
+
+\paragraph{Exponentiel simple}
 \[
-n=\int_0^{\infty}\phi(u)\,du
+\phi(t)=\alpha e^{-\beta t}\mathbf{1}_{t\ge 0}.
 \]
-mesure le nombre moyen d'événements descendants d'un événement-type.  
-La part endogène croît avec $n$ ; plus $n$ est élevé, plus la dynamique interne domine le flux observé.
+Avantages: calcul rapide, recursion utile pour MLE, interpretation nette de l'echelle $1/\beta$. Limites: memoire trop courte pour certaines donnees.
 
-Dans le cadre multivarié, l'objet pertinent devient la structure spectrale de $G$. Un rayon spectral proche de 1 indique une forte auto-organisation du marché, souvent associée à des périodes où la microstructure amplifie ses propres fluctuations.
+\paragraph{Somme d'exponentielles}
+\[
+\phi(t)=\sum_{k=1}^{K}\alpha_k e^{-\beta_k t}.
+\]
+Compromis pragmatique en finance: approximation flexible des decroissances multi-horizon.
 
-\subsection*{5. Forme des noyaux et implications}
-\addcontentsline{toc}{subsection}{5. Forme des noyaux et implications}
+\paragraph{Noyaux de type loi de puissance}
+\[
+\phi(t)\propto (c+t)^{-(1+\gamma)}.
+\]
+Ils capturent mieux la persistance longue. Leur estimation est plus delicate, mais ils sont souvent plus credibles pour les donnees HF.
 
-L'article insiste sur l'importance du choix des noyaux :
+Le point cle de l'article est qu'un bon noyau n'est pas seulement celui qui optimise la vraisemblance in-sample ; c'est celui qui preserve le sens economique des interactions.
+
+\subsection*{6. Statistiques de premier et second ordre}
+\addcontentsline{toc}{subsection}{6. Statistiques de premier et second ordre}
+
+Une propriete utile des Hawkes lineaires est la possibilite de relier intensites moyennes et noyaux.
+
+Si $\bar{\lambda}$ designe le vecteur des intensites moyennes en stationnarite, on a:
+\[
+\bar{\lambda}=(I-G)^{-1}\mu.
+\]
+Cette formule montre explicitement l'amplification endogene. A $\mu$ fixe, plus $G$ est proche d'une matrice critique, plus $\bar{\lambda}$ est elevee.
+
+Les structures de covariance des increments de comptage peuvent aussi etre exprimees via un resolvant du noyau. C'est l'un des leviers majeurs pour l'estimation non parametrique evoquee dans le papier.
+
+\subsection*{7. Estimation: maximum de vraisemblance et approches non parametriques}
+\addcontentsline{toc}{subsection}{7. Estimation: maximum de vraisemblance et approches non parametriques}
+
+\paragraph{7.1 Log-vraisemblance}
+Sur l'intervalle $[0,T]$, pour une composante (notation simplifiee):
+\[
+\log\mathcal{L}(\theta)=\sum_{t_k\le T}\log \lambda_{t_k}(\theta)-\int_0^T \lambda_s(\theta)\,ds.
+\]
+En multivarie, on somme sur toutes les composantes.
+
+\paragraph{7.2 Interet de la parametrisation exponentielle}
+Avec des noyaux exponentiels, des recursions permettent de mettre a jour les intensites de maniere efficace sans recalcul complet de l'historique. C'est une raison pratique de leur succes dans les implmentations de desk.
+
+\paragraph{7.3 Non parametrique}
+Le papier rappelle que la structure Hawkes permet d'inferer les noyaux depuis des moments/covariances. Cet angle est precieux lorsque l'on veut eviter un choix de forme trop rigide.
+
+\paragraph{7.4 Difficultes pratiques}
 \begin{itemize}[leftmargin=1.2cm]
-    \item \textbf{Exponentiels} : estimation rapide, interprétation simple, mais mémoire courte.
-    \item \textbf{Sommes d'exponentielles} : compromis flexible/interprétable.
-    \item \textbf{Lois de puissance} : meilleure adéquation avec la mémoire longue empirique.
+    \item non-stationnarite intraday ;
+    \item grande dimension des systemes ;
+    \item compromis biais/variance dans la regularisation ;
+    \item cout de calcul pour des historiques tres longs.
 \end{itemize}
 
-Cette discussion est essentielle en finance, car la décroissance de la mémoire conditionne la capacité du modèle à reproduire les clusters d'activité observés sur plusieurs échelles de temps.
+\subsection*{8. Section cle demandee: sampling, discretisation et impact sur les conclusions}
+\addcontentsline{toc}{subsection}{8. Section cle demandee: sampling, discretisation et impact sur les conclusions}
 
-\subsection*{6. Estimation statistique : logique et difficultés}
-\addcontentsline{toc}{subsection}{6. Estimation statistique : logique et difficultés}
+Dans un rapport long, la question du sampling ne peut pas etre une note de bas de page. Elle influence directement la calibration, la comparaison des etudes et la robustesse des critiques.
 
-\paragraph{6.1 Maximum de vraisemblance}
-Pour un horizon $[0,T]$, la log-vraisemblance d'un processus ponctuel est
-\[
-\log\mathcal{L}(\theta)=\sum_{k}\log\lambda_{t_k}(\theta)-\int_0^T\lambda_s(\theta)\,ds.
-\]
-En multivarié, on somme sur les composantes. L'approche est efficace mais peut devenir coûteuse en grande dimension et sensible aux choix paramétriques.
+\subsubsection*{8.1 Trois echelles de temps a ne pas confondre}
+\begin{itemize}[leftmargin=1.2cm]
+    \item \textbf{Calendar time} (temps physique): secondes, millisecondes.
+    \item \textbf{Event time} (temps transactionnel): index des evenements.
+    \item \textbf{Business/volume time}: horloge deformee par le flux.
+\end{itemize}
 
-\paragraph{6.2 Méthodes moments/covariances}
-Les auteurs évoquent des approches non paramétriques basées sur la structure de corrélation. Elles réduisent la dépendance à une forme fonctionnelle stricte, mais demandent des données abondantes et un traitement soigné de la non-stationnarité intraday.
+Le modele Hawkes est formule en temps continu physique, mais les donnees sont souvent pretraitees avec des conventions hybrides. Ce decalage cree des biais d'interpretation.
 
-\paragraph{6.3 Problèmes pratiques}
-Trois points reviennent régulièrement :
+\subsubsection*{8.2 Sampling des prix et microstructure noise}
+Si l'on derive des evenements prix a partir de prix echantillonnes trop grossierement (par exemple toutes les secondes), on perd des alternances rapides up/down. A l'inverse, un sampling trop fin peut surestimer l'activite endogene en incorporant des oscillations microstructurelles (rebonds de spread, flickering quotes).
+
+Autrement dit, la valeur estimee de $n$ (ou de $\rho(G)$ en multivarie) depend fortement du protocole de reconstruction des evenements.
+
+\subsubsection*{8.3 Binning et estimation non parametrique}
+Les methodes basees sur covariance utilisent souvent des increments sur des pas $\Delta$. Le choix de $\Delta$ agit comme un filtre:
+\begin{itemize}[leftmargin=1.2cm]
+    \item $\Delta$ trop petit: variance elevee, bruit de discretisation ;
+    \item $\Delta$ trop grand: lissage excessif, perte d'information de court terme.
+\end{itemize}
+
+Le papier n'ignore pas cette tension, mais la pratique empirique exige des diagnostics systematiques (stabilite des noyaux calibres en fonction de $\Delta$).
+
+\subsubsection*{8.4 Sampling asynchrone en multivarie}
+Pour des flux multi-assets ou multi-venues, les horodatages ne sont pas parfaitement synchrones. Une fusion naive peut induire de fausses causalites temporelles (ordre artificiel des evenements). Le risque est de conclure a une cross-excitation structurelle alors qu'il s'agit d'un artefact de timestamp.
+
+\subsubsection*{8.5 Sampling pour la simulation Hawkes}
+Deux logiques de simulation sont classiques:
 \begin{enumerate}[leftmargin=1.2cm]
-    \item biais de fenêtre en présence de régimes changeants,
-    \item identifiabilité partielle quand plusieurs noyaux produisent des effets proches,
-    \item surcharge paramétrique en dimension élevée.
+    \item \textbf{Ogata thinning}: generation en temps continu puis acceptation/rejet.
+    \item \textbf{Cluster/branching simulation}: generation genealogique (immigrants + descendants).
 \end{enumerate}
 
-\subsection*{7. Résultats empiriques mis en avant dans le papier}
-\addcontentsline{toc}{subsection}{7. Résultats empiriques mis en avant dans le papier}
+Dans les deux cas, le \enquote{sampling output} (par exemple conversion en series a pas fixe) modifie la perception des clusters. Une bonne pratique est de conserver le chemin evenementiel natif, puis de deriver ensuite les frequences agregees.
 
-La synthèse des résultats peut être reformulée ainsi :
+\subsubsection*{8.6 Conclusion intermediaire sur le sampling}
+Le message important est le suivant: l'endogeneite n'est pas une grandeur absolue detachée de la mesure ; elle est \emph{mesuree} sous un protocole de sampling donne. Comparer deux etudes sans harmoniser ce protocole peut conduire a des conclusions contradictoires.
+
+\subsection*{9. Principaux resultats empiriques du papier}
+\addcontentsline{toc}{subsection}{9. Principaux resultats empiriques du papier}
+
+Les auteurs montrent que les Hawkes reproduisent de facon convaincante les faits stylises de la microstructure:
 \begin{itemize}[leftmargin=1.2cm]
-    \item les Hawkes reproduisent de manière convaincante le clustering des événements ;
-    \item les estimations suggèrent une endogénéité forte sur de nombreux marchés électroniques ;
-    \item l'approche multivariée permet d'analyser la directionnalité entre flux d'ordres et mouvements de prix ;
-    \item le cadre fournit des indicateurs utiles pour la microstructure (activité réflexive, propagation des chocs, asymétries de réponse).
+    \item concentration temporelle de l'activite ;
+    \item persistance des reponses a differents horizons ;
+    \item interactions directionnelles entre flux d'ordres et prix ;
+    \item importance de la composante endogene.
 \end{itemize}
 
-\subsection*{8. Mise en perspective conceptuelle}
-\addcontentsline{toc}{subsection}{8. Mise en perspective conceptuelle}
+Le resultat le plus marquant est la quantification de la reflexivite: le marche n'est pas un simple recepteur d'information externe ; il regenere sa propre activite via ses mecanismes internes.
 
-Ce papier occupe une position charnière entre économétrie haute fréquence et modélisation stochastique. Il ne prétend pas expliquer toute la dynamique des marchés ; il propose plutôt un langage unifié pour quantifier les mécanismes de contagion temporelle entre événements. C'est précisément ce qui en fait un texte de référence : la théorie est mathématiquement contrôlée tout en restant opérationnelle.
+\subsection*{10. Lecture synthese de la Partie I}
+\addcontentsline{toc}{subsection}{10. Lecture synthese de la Partie I}
+
+La contribution du papier peut se resumer en quatre idees:
+\begin{enumerate}[leftmargin=1.2cm]
+    \item une modelisation mathematiquement propre des dependances evenementielles ;
+    \item une decomposition interpretable entre exogeneite et endogeneite ;
+    \item des outils d'estimation adaptables (parametrique/non parametrique) ;
+    \item un cadre directement mobilisable en finance de marche.
+\end{enumerate}
 
 \newpage
-\section*{PARTIE II --- Analyse personnelle, critique et extensions}
-\addcontentsline{toc}{section}{PARTIE II --- Analyse personnelle, critique et extensions}
+\section*{PARTIE II --- Analyse personnelle, critiques et extensions}
+\addcontentsline{toc}{section}{PARTIE II --- Analyse personnelle, critiques et extensions}
 
-\subsection*{1. Ce que j'estime le plus robuste dans l'approche}
-\addcontentsline{toc}{subsection}{1. Ce que j'estime le plus robuste dans l'approche}
+\subsection*{1. Point de depart critique: conserver les memes axes, mais les approfondir}
+\addcontentsline{toc}{subsection}{1. Point de depart critique: conserver les memes axes, mais les approfondir}
 
-\paragraph{1.1 Un cadre quantitatif lisible}
-La force principale du modèle est sa lisibilité économique. Les paramètres ne sont pas de simples coefficients de fit : $\mu$ capte l'activité de fond, les noyaux représentent la propagation des effets, et $\rho(G)$ synthétise la proximité d'un régime critique. Cette transparence facilite le dialogue entre recherche académique, trading électronique et contrôle du risque.
+Je reprends ici les grands axes de critique habituellement formules autour du papier (et presentes dans mon precedent travail), en les detailant davantage:
+\begin{itemize}[leftmargin=1.2cm]
+    \item causalite versus correlation dynamique ;
+    \item stationnarite fragile des calibrages ;
+    \item sensibilite aux choix de sampling ;
+    \item difficulte de passage a la grande dimension ;
+    \item ecart entre performance in-sample et robustesse operationnelle.
+\end{itemize}
 
-\paragraph{1.2 Une architecture modulaire}
-Le modèle s'adapte à des jeux d'événements variés. On peut enrichir progressivement la dimension (prix, volume, annulations, spread) sans changer la logique de base. Pour un praticien quant, cette extensibilité est décisive : elle permet de commencer simple, puis d'augmenter la granularité selon les besoins.
+L'objectif n'est pas de contester la valeur du cadre, mais de situer clairement ce qu'il dit, ce qu'il ne dit pas, et comment ne pas sur-interpreter les estimations.
 
-\paragraph{1.3 Une passerelle vers l'interprétation microstructurelle}
-L'estimation des influences croisées apporte une vision dynamique des interactions entre agents et mécanismes de marché. Même si l'inférence causale stricte reste délicate, la carte des excitations reste informative pour comprendre \enquote{qui réagit à quoi} sur des horizons sub-secondes.
+\subsection*{2. Critique 1 --- Causalite economique et causalite conditionnelle}
+\addcontentsline{toc}{subsection}{2. Critique 1 --- Causalite economique et causalite conditionnelle}
 
-\subsection*{2. Réserves et limites méthodologiques}
-\addcontentsline{toc}{subsection}{2. Réserves et limites méthodologiques}
+Un Hawkes identifie des dependances conditionnelles dans le temps. Cela ne suffit pas a etablir une causalite structurelle au sens economique.
 
-\paragraph{2.1 Corrélation dynamique versus causalité structurelle}
-Le modèle détecte des dépendances conditionnelles, mais celles-ci peuvent refléter des facteurs latents communs (annonces, changements de liquidité, adaptation simultanée des market makers). Interpréter chaque arc $\phi_{ij}$ comme un canal causal direct peut conduire à des conclusions excessives.
+Exemple type: une annonce macro peut simultanement augmenter l'activite buy et sell. Le modele peut enregistrer une forte excitation mutuelle entre les deux flux, alors que le moteur principal est externe. Sans variables de controle ni design quasi-experimental, l'interpretation causale reste partielle.
 
-\paragraph{2.2 Fragilité de la stationnarité}
-Les marchés électroniques changent de régime au cours de la journée. Ouvrir/fermer, publications macro, stress de liquidité : tout cela modifie les intensités de base et les noyaux effectifs. Un calibrage unique sur longue fenêtre peut lisser des dynamiques hétérogènes et masquer des ruptures.
+Cette critique est importante car les graphes d'interaction Hawkes sont tres seduisants visuellement ; ils peuvent donner une illusion de mecanisme causal complet.
 
-\paragraph{2.3 Complexité en grande dimension}
-Quand le nombre de composantes augmente, la matrice des noyaux devient massive. Sans régularisation, le risque de sur-ajustement est élevé ; avec régularisation forte, on peut perdre des interactions faibles mais utiles. Trouver l'équilibre reste non trivial.
+\subsection*{3. Critique 2 --- Stationnarite et ruptures de regime}
+\addcontentsline{toc}{subsection}{3. Critique 2 --- Stationnarite et ruptures de regime}
 
-\paragraph{2.4 Qualité des données}
-En pratique, les horodatages, la consolidation multi-venues et la reconstruction du carnet influencent fortement les estimations. Une partie de la difficulté est donc \enquote{ingénierie des données} plutôt que purement statistique.
+Le cadre standard suppose des parametres stables sur la fenetre d'estimation. En pratique:
+\begin{itemize}[leftmargin=1.2cm]
+    \item l'ouverture et la cloture de seance changent fortement les intensites ;
+    \item les publications macroeconomiques provoquent des regimes transitoires ;
+    \item les modifications de microstructure (tick size, matching rules) changent durablement les interactions.
+\end{itemize}
 
-\subsection*{3. Deux perspectives additionnelles que je trouve sous-exploitées}
-\addcontentsline{toc}{subsection}{3. Deux perspectives additionnelles que je trouve sous-exploitées}
+Une estimation unique peut donc melanger plusieurs regimes heterogenes. L'interprete peut croire a un noyau long et stable alors qu'il capte en partie une moyenne de comportements distincts.
 
-\paragraph{3.1 Usage explicite pour le pilotage du risque intraday}
-Au-delà du diagnostic académique, les grandeurs Hawkes peuvent alimenter un tableau de bord de risque opérationnel : un accroissement rapide de $\rho(G)$ ou de la masse des noyaux peut signaler une montée d'endogénéité, donc une plus forte sensibilité aux effets de boucle. Cela justifie des ajustements dynamiques de limites et de participation.
+\subsection*{4. Critique 3 --- Sampling et discretisation (point central)}
+\addcontentsline{toc}{subsection}{4. Critique 3 --- Sampling et discretisation (point central)}
 
-\paragraph{3.2 Intégration à la politique d'exécution}
-Dans les algorithmes d'exécution, la prévision de l'intensité à très court horizon est un input naturel pour décider du rythme d'envoi des ordres. Un module Hawkes peut aider à arbitrer entre coût d'impact immédiat et risque d'opportunité, surtout lorsque l'activité est très hétérogène au sein de la séance.
+Cette critique est, a mon sens, aussi importante que la question de stationnarite.
 
-\subsection*{4. Nouvelles pistes de recherche (au-delà du papier)}
-\addcontentsline{toc}{subsection}{4. Nouvelles pistes de recherche (au-delà du papier)}
+\paragraph{4.1 Definition des evenements}
+Le resultat depend de la facon dont on transforme le flux brut en evenements modelises:
+\begin{itemize}[leftmargin=1.2cm]
+    \item trade prints bruts ;
+    \item mouvements de mid-price ;
+    \item variations du meilleur bid/ask ;
+    \item annulations et ajouts de profondeur.
+\end{itemize}
+Chaque definition modifie la dynamique apparente.
 
-\paragraph{4.1 Hawkes marqués et dépendance à l'état du carnet}
-Une extension crédible est d'autoriser des noyaux dépendant de marques (taille d'ordre, imbalance, spread). On gagne en réalisme en liant explicitement la réaction du marché à la nature des événements, pas seulement à leur occurrence.
+\paragraph{4.2 Resolution temporelle}
+Quand les timestamps sont arrondis ou agregees, on introduit des ex-aequo artificiels. La gestion de ces ties (ordre impose, random tie-break, batch) affecte la cross-excitation estimee.
 
-\paragraph{4.2 Paramètres variant selon les régimes}
-Plutôt que d'imposer des paramètres constants, on peut utiliser des Hawkes à coefficients dépendant d'un régime latent (calme/stress). Cela répond mieux aux changements structurels intraday et pourrait améliorer la robustesse hors échantillon.
+\paragraph{4.3 Sampling multi-venues}
+Sur des donnees consolidees, les latences de transmission et les politiques de timestamping differents selon venues biaisent la chronologie observee. Ce point peut renverser le sens de certaines influences estimees.
 
-\paragraph{4.3 Connexion avec les modèles rough}
-Les noyaux à décroissance lente suggèrent un lien avec les dynamiques rough de volatilité observées à plus basse fréquence. Explorer cette articulation micro-macro est, selon moi, l'une des pistes les plus fécondes : elle peut unifier des phénomènes longtemps étudiés séparément.
+\paragraph{4.4 Consequence sur les critiques}
+Le risque est de discuter longuement la theorie Hawkes alors que l'incertitude dominante vient du pipeline de donnees. Une bonne critique doit donc separer:
+\begin{enumerate}[leftmargin=1.2cm]
+    \item les limites du modele ;
+    \item les limites du sampling/protocole empirique.
+\end{enumerate}
 
-\paragraph{4.4 Apprentissage statistique régularisé}
-En dimension élevée, l'introduction de pénalisations (sparsity, low-rank, contraintes de positivité structurée) pourrait stabiliser l'estimation tout en conservant l'interprétation économique des réseaux d'excitation.
+\subsection*{5. Critique 4 --- Grande dimension et regularisation}
+\addcontentsline{toc}{subsection}{5. Critique 4 --- Grande dimension et regularisation}
 
-\subsection*{5. Point de vue personnel global}
-\addcontentsline{toc}{subsection}{5. Point de vue personnel global}
+Si l'on modele $d$ composantes, il faut estimer potentiellement $d^2$ noyaux. Pour des modeles riches, la charge parametrique devient rapidement enorme.
 
-Je considère cet article comme une référence de méthode : il réussit à transformer une intuition empirique (les marchés s'auto-activent) en cadre quantifiable et testable. Sa plus grande qualité est de rendre mesurable la part endogène de l'activité financière.
+Les solutions pratiques passent par regularisation (sparsity, low-rank, penalites groupées). Mais ces choix imposent une geometrie \emph{a priori} des interactions, qui peut orienter les conclusions economiques. En d'autres termes, la carte d'excitation finale est parfois autant un produit de la penalite choisie que des donnees elles-memes.
 
-Ma réserve principale porte sur l'usage naïf des résultats calibrés : sans traitement rigoureux de la non-stationnarité et sans précaution sur la causalité, on peut sur-interpréter les coefficients. Autrement dit, la puissance descriptive du modèle est élevée, mais son interprétation structurelle doit rester prudente.
+\subsection*{6. Critique 5 --- Validation economique hors echantillon}
+\addcontentsline{toc}{subsection}{6. Critique 5 --- Validation economique hors echantillon}
 
-Malgré ces limites, le cadre Hawkes demeure extrêmement pertinent pour la finance quantitative moderne : il combine précision locale, flexibilité multivariée et lecture économique exploitable.
+Un bon ajustement de vraisemblance ne garantit pas l'utilite operationnelle. Pour une lecture finance, il faudrait des tests hors echantillon relies a des objectifs clairs:
+\begin{itemize}[leftmargin=1.2cm]
+    \item amelioration de la prevision d'intensite a court horizon ;
+    \item gain net en execution apres couts ;
+    \item meilleur monitoring de risque intraday.
+\end{itemize}
 
-\subsection*{6. Tableau de synthèse personnel}
-\addcontentsline{toc}{subsection}{6. Tableau de synthèse personnel}
+Sans ces tests, on reste surtout dans une validation statistique interne, utile mais incomplete pour juger de la valeur economique.
 
-\begin{table}[H]
-\centering
-\begin{tabular}{>{\raggedright\arraybackslash}p{4.1cm} >{\raggedright\arraybackslash}p{5.4cm} >{\raggedright\arraybackslash}p{5.4cm}}
+\subsection*{7. Ce que je considere comme les forces majeures (malgre ces critiques)}
+\addcontentsline{toc}{subsection}{7. Ce que je considere comme les forces majeures (malgre ces critiques)}
+
+\paragraph{7.1 Clarte conceptuelle}
+Le papier propose une decomposition lisible:
+\[
+\text{activite totale} = \text{flux de fond} + \text{amplification endogene}.
+\]
+Cette lecture est pedagogiquement tres forte pour un public quant.
+
+\paragraph{7.2 Cohesion mathematique}
+Le cadre est rigoureux, avec des conditions de stabilite explicites et des proprietes analytiques exploitables.
+
+\paragraph{7.3 Portee applicative}
+Le meme formalisme est mobilisable pour plusieurs cas: modelisation transactionnelle, dynamique de prix, design d'algorithmes d'execution, surveillance intraday.
+
+\subsection*{8. Deux perspectives nouvelles ajoutees a l'analyse}
+\addcontentsline{toc}{subsection}{8. Deux perspectives nouvelles ajoutees a l'analyse}
+
+\paragraph{8.1 Perspective gouvernance du risque modele}
+Dans un environnement institutionnel, un modele Hawkes ne devrait pas etre evalue uniquement par son fit ; il devrait aussi faire l'objet d'un cadre de \emph{model risk governance}: seuils d'alerte, suivi de derive des parametres, backtests sur episodes de stress, et documentation des choix de sampling. Cette dimension est encore sous-developpee dans beaucoup d'applications.
+
+\paragraph{8.2 Perspective resilience de marche}
+Les estimates de $\rho(G)$ peuvent etre interpretees comme des indicateurs de fragilite microstructurelle. Je vois ici un lien direct avec la notion de resilience: plus le systeme est proche du regime critique, plus il est vulnerable a des boucles d'amplification. Cette lecture ouvre des usages en monitoring systemique, pas seulement en trading.
+
+\subsection*{9. Extensions methodologiques concretes}
+\addcontentsline{toc}{subsection}{9. Extensions methodologiques concretes}
+
+\paragraph{9.1 Hawkes a parametres dependants du regime}
+On peut faire varier $(\mu,\phi)$ selon un etat latent (calme, transition, stress). C'est une reponse directe a la critique de stationnarite.
+
+\paragraph{9.2 Hawkes marques orientes microstructure}
+Ajout de marques: taille de trade, spread, imbalance, profondeur locale. Le modele gagne en contenu economique.
+
+\paragraph{9.3 Couplage avec variables exogenes}
+Introduire des covariables (news, indicateurs macro, volatilite implicite) permet de separer plus proprement l'endogeneite pure des moteurs exogenes.
+
+\paragraph{9.4 Estimation regulierisee haute dimension}
+Combiner penalisation parcimonieuse et contraintes de positivite sur les noyaux peut maintenir interpretation et stabilite numerique.
+
+\paragraph{9.5 Protocole de sampling robuste}
+Une extension essentielle consiste a calibrer sous plusieurs protocoles de sampling (calendar/event/volume time) et a rapporter la sensibilite des conclusions. C'est un equivalent de stress test \enquote{data pipeline}.
+
+\subsection*{10. Proposition personnelle de protocole empirique}
+\addcontentsline{toc}{subsection}{10. Proposition personnelle de protocole empirique}
+
+Je propose un protocole en six etapes, coherent avec les critiques precedentes:
+\begin{enumerate}[leftmargin=1.2cm]
+    \item Definir precisement les evenements (prix, ordre, annulation) et documenter les regles de reconstruction.
+    \item Nettoyer les timestamps et traiter explicitement les ties.
+    \item Estimer un modele de base (somme d'exponentielles) puis un modele flexible.
+    \item Re-estimer sous plusieurs conventions de sampling.
+    \item Tester la stabilite des indicateurs d'endogeneite ($n$ ou $\rho(G)$).
+    \item Evaluer la valeur economique hors echantillon (execution, risque, forecast).
+\end{enumerate}
+
+Ce protocole permet de conserver la force du cadre Hawkes tout en limitant les sur-interpretations.
+
+\subsection*{11. Tableau de synthese critique (version longue)}
+\addcontentsline{toc}{subsection}{11. Tableau de synthese critique (version longue)}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{3.1cm} >{\raggedright\arraybackslash}p{5.3cm} >{\raggedright\arraybackslash}p{6.0cm}}
 \toprule
-\textbf{Dimension} & \textbf{Apport du papier} & \textbf{Vigilance / extension}\\
+\textbf{Theme} & \textbf{Apport du papier} & \textbf{Lecture critique personnelle} \\
 \midrule
-Représentation du temps & Processus ponctuel à mémoire, adapté au HF & Sensibilité aux ruptures de régime \\
-\addlinespace[0.3em]
-Interprétation économique & Décomposition exogène/endogène claire & Éviter l'assimilation mécanique à la causalité \\
-\addlinespace[0.3em]
-Empirique & Très bon fit du clustering d'événements & Validation hors échantillon indispensable \\
-\addlinespace[0.3em]
-Scalabilité & Structure modulaire multivariée & Régularisation nécessaire en haute dimension \\
-\addlinespace[0.3em]
-Usage opérationnel & Potentiel en exécution et monitoring intraday & Dépend fortement de la qualité du data engineering \\
+\endfirsthead
+\toprule
+\textbf{Theme} & \textbf{Apport du papier} & \textbf{Lecture critique personnelle} \\
+\midrule
+\endhead
+Cadre probabiliste & Processus ponctuels lineaires clairs, intensite conditionnelle bien definie. & Tres solide mathematiquement ; attention toutefois aux lectures causales trop rapides. \\
+\addlinespace[0.2em]
+Endogeneite & Quantification explicite via branching ratio / rayon spectral. & Indicateur utile mais sensible aux choix de donnees, de fenetre et de sampling. \\
+\addlinespace[0.2em]
+Multivarie & Carte directionnelle des interactions entre types d'evenements. & Bonne heuristique microstructure ; risque d'artefacts si horodatages asynchrones. \\
+\addlinespace[0.2em]
+Estimation parametrique & MLE efficace (surtout noyaux exponentiels). & Peut privilegier la commodite computationnelle sur le realisme de la memoire. \\
+\addlinespace[0.2em]
+Estimation non parametrique & Plus flexible, moins dependante d'une forme imposee. & Exige beaucoup de donnees et un calibrage soigne des hyperparametres. \\
+\addlinespace[0.2em]
+Sampling & Le papier suggere implicitement la prudence sur la discretisation. & A traiter de facon centrale: la definition des evenements est souvent le point critique principal. \\
+\addlinespace[0.2em]
+Usages operationnels & Potentiel en prevision locale, execution, monitoring de flux. & Validation economique hors echantillon encore trop rarement complete. \\
+\addlinespace[0.2em]
+Scalabilite & Approche modulable. & Grande dimension difficile sans regularisation structurante. \\
 \bottomrule
-\end{tabular}
-\caption{Synthèse critique personnelle du cadre Hawkes en finance.}
-\end{table}
+\end{longtable}
+
+\subsection*{12. Discussion detaillee sur le sampling: ce qui change vraiment les resultats}
+\addcontentsline{toc}{subsection}{12. Discussion detaillee sur le sampling: ce qui change vraiment les resultats}
+
+Pour respecter l'exigence d'un rapport long et aligner avec les critiques precedentes, je detaille ici les points techniques qui, en pratique, changent fortement les estimations:
+
+\paragraph{12.1 Rulebook de construction des evenements prix}
+Meme sur un seul actif, deux rulebooks frequents conduisent a des series differente:
+\begin{itemize}[leftmargin=1.2cm]
+    \item events au moindre changement de mid-price ;
+    \item events apres filtrage du rebond bid-ask (par exemple changement persistant sur plusieurs ticks).
+\end{itemize}
+Le second rulebook reduit souvent les oscillations mecaniques et produit des noyaux moins artificiellement courts.
+
+\paragraph{12.2 Pre-aggregation des trades}
+Certains flux contiennent des paquets de micro-trades quasi simultanes (iceberg execution, slicing interne). Les agreger ou non modifie le nombre d'evenements de base et donc le ratio endogene estime.
+
+\paragraph{12.3 Traitement des timestamps identiques}
+Trois pratiques courantes:
+\begin{enumerate}[leftmargin=1.2cm]
+    \item ordre natif du flux ;
+    \item ordre aleatoire ;
+    \item batch simultane.
+\end{enumerate}
+Le choix peut changer significativement les asymetries buy$\rightarrow$sell et sell$\rightarrow$buy.
+
+\paragraph{12.4 Fenetre intraday et normalisation de saisonnalite}
+L'intensite de fond n'est pas constante sur la journee. Sans deseasonnalisation, les noyaux absorbent partiellement cette variation deterministe, ce qui biaise l'endogeneite.
+
+\paragraph{12.5 Regles de comparaison entre etudes}
+Pour comparer deux calibrages Hawkes de facon honnête, je recommande de publier:
+\begin{itemize}[leftmargin=1.2cm]
+    \item protocole de construction des evenements ;
+    \item resolution temporelle et gestion des ties ;
+    \item fenetres de calibration ;
+    \item schema de deseasonnalisation ;
+    \item metriques d'incertitude sur $n$ ou $\rho(G)$.
+\end{itemize}
+
+Sans ce niveau de transparence, la reproductibilite reste limitee.
+
+\subsection*{13. Position personnelle finale sur le papier}
+\addcontentsline{toc}{subsection}{13. Position personnelle finale sur le papier}
+
+Mon avis est volontairement nuance. Je considere ce papier comme une contribution majeure, parce qu'il transforme une intuition de microstructure en outil quantitatif directement estimable. En meme temps, l'usage operationnel exige plus que le modele: il faut une discipline empirique stricte, en particulier sur la stationnarite et le sampling.
+
+Si je devais resumer en une phrase:
+\begin{quote}
+\emph{Le cadre Hawkes est un excellent microscope de la dynamique evenementielle, a condition de ne pas oublier que la qualite du microscope depend aussi de la qualite de la preparation des donnees.}
+\end{quote}
 
 \newpage
-\section*{Conclusion}
-\addcontentsline{toc}{section}{Conclusion}
+\section*{Conclusion generale}
+\addcontentsline{toc}{section}{Conclusion generale}
 
-L'article de Bacry, Mastromatteo et Muzy fournit une grammaire robuste pour analyser la microstructure moderne. Son apport n'est pas seulement technique : il rend possible une quantification explicite de la réflexivité des marchés. À mes yeux, son héritage principal est d'avoir installé un standard de modélisation où la mémoire, les interactions et l'endogénéité ne sont plus des effets résiduels, mais des objets centraux de l'analyse.
+Ce rapport long a garde la logique de fond attendue (Partie I / Partie II) tout en reformulant l'argumentation de maniere autonome. La synthese de l'article met en avant la force structurante des processus de Hawkes pour la finance haute frequence: modelisation de l'auto-excitation, interactions multivariees, decomposition exogene/endogene et estimation statistique.
 
-Pour un étudiant de M2 en finance quantitative, la leçon méthodologique est claire : il faut combiner rigueur stochastique, calibration prudente et lecture économique nuancée. C'est cette triple exigence qui fait la différence entre un modèle bien ajusté et un modèle réellement utile.
+L'analyse critique reprend les memes axes essentiels que dans un bilan standard du papier, en les approfondissant: causalite, stationnarite, grande dimension, robustesse hors echantillon, et surtout sampling. Ce dernier point est traite ici comme un facteur de premier ordre, car il influence directement les mesures d'endogeneite et la comparabilite des travaux empiriques.
+
+D'un point de vue de M2 quantitatif, la lecon est double:
+\begin{itemize}[leftmargin=1.2cm]
+    \item il faut maitriser la theorie stochastique pour modeliser correctement les interactions de marche ;
+    \item il faut maitriser le pipeline de donnees et les protocoles de sampling pour que les resultats soient interpretables.
+\end{itemize}
+
+Un bon modele Hawkes est donc moins une formule isolee qu'un dispositif complet: theorie, calibration, tests de robustesse, et validation economique.
+
+\newpage
+\section*{Bibliographie}
+\addcontentsline{toc}{section}{Bibliographie}
 
 \begin{thebibliography}{99}
 
@@ -272,15 +533,25 @@ E.~Bacry, J.-F.~Muzy (2016),
 \newblock \emph{First- and Second-Order Statistics Characterization of Hawkes Processes and Non-Parametric Estimation},
 \newblock \emph{IEEE Transactions on Information Theory}, 62(4), 2184--2202.
 
+\bibitem{DaFonsecaZaatour2014}
+J.~da Fonseca, R.~Zaatour (2014),
+\newblock \emph{Hawkes Process: Fast Calibration, Application to Trade Clustering and Diffusive Limit},
+\newblock \emph{Journal of Futures Markets}, 34(6), 548--579.
+
+\bibitem{Large2007}
+J.~Large (2007),
+\newblock \emph{Measuring the Resiliency of an Electronic Limit Order Book},
+\newblock \emph{Journal of Financial Markets}, 10(1), 1--25.
+
 \bibitem{ElEuchRosenbaum2019}
 O.~El Euch, M.~Rosenbaum (2019),
 \newblock \emph{The Characteristic Function of Rough Heston Models},
 \newblock \emph{Mathematical Finance}, 29(1), 3--38.
 
-\bibitem{AbergelJedidi2015}
-F.~Abergel, A.~Jedidi (2015),
-\newblock \emph{A Mathematical Approach to Order Book Modeling},
-\newblock \emph{International Journal of Theoretical and Applied Finance}, 18(5).
+\bibitem{BouchaudBonart2018}
+J.-P.~Bouchaud, J.~Bonart, J.~Donier, M.~Gould (2018),
+\newblock \emph{Trades, Quotes and Prices: Financial Markets Under the Microscope},
+\newblock Cambridge University Press.
 
 \end{thebibliography}
 
