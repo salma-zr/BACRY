@@ -13,6 +13,8 @@
 \usepackage{array}
 \usepackage{float}
 \usepackage{longtable}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
 
 \geometry{margin=2.3cm}
 \setstretch{1.19}
@@ -101,6 +103,32 @@ Pourquoi cette quantite est-elle centrale en finance ?
 
 Dans la litterature inspiree par ce papier, ce parametre est devenu un indicateur pratique de \emph{reflexivite} du marche.
 
+La logique de cascade est illustree dans la Figure~\ref{fig:branching_schema}: un choc exogene initial peut engendrer plusieurs generations d'evenements endogenes, ce qui explique l'apparition de grappes d'activite.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[>=Latex, node distance=1.3cm]
+    \tikzstyle{evt}=[circle, draw=black, fill=black!8, minimum size=7mm, inner sep=1pt]
+    \node[evt] (e0) at (0,0) {$e_0$};
+    \node[evt] (e11) at (2.1,0.8) {$e_1$};
+    \node[evt] (e12) at (2.1,-0.8) {$e_2$};
+    \node[evt] (e21) at (4.2,1.4) {$e_3$};
+    \node[evt] (e22) at (4.2,0.2) {$e_4$};
+    \node[evt] (e23) at (4.2,-1.1) {$e_5$};
+
+    \draw[->, thick] (e0) -- (e11);
+    \draw[->, thick] (e0) -- (e12);
+    \draw[->, thick] (e11) -- (e21);
+    \draw[->, thick] (e11) -- (e22);
+    \draw[->, thick] (e12) -- (e23);
+
+    \node[align=center] at (0,-1.55) {\footnotesize immigrant\\\footnotesize (exogene)};
+    \node[align=center] at (3.2,-2.05) {\footnotesize descendants\\\footnotesize (endogenes)};
+\end{tikzpicture}
+\caption{Schema de branchement simplifie d'un Hawkes: un evenement immigrant peut declencher plusieurs descendants en cascade.}
+\label{fig:branching_schema}
+\end{figure}
+
 \subsection*{4. Passage multivarie: interactions entre evenements heterogenes}
 \addcontentsline{toc}{subsection}{4. Passage multivarie: interactions entre evenements heterogenes}
 
@@ -152,6 +180,31 @@ Compromis pragmatique en finance: approximation flexible des decroissances multi
 Ils capturent mieux la persistance longue. Leur estimation est plus delicate, mais ils sont souvent plus credibles pour les donnees HF.
 
 Le point cle de l'article est qu'un bon noyau n'est pas seulement celui qui optimise la vraisemblance in-sample ; c'est celui qui preserve le sens economique des interactions.
+
+La Figure~\ref{fig:kernels_compare} synthetise l'intuition sur la forme des noyaux: un exponentiel simple oublie vite, une somme d'exponentielles melange horizons court et moyen, et une loi de puissance conserve une queue plus longue.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=1.2cm,y=5.2cm]
+    % Axes
+    \draw[->] (0,0) -- (5.2,0) node[right] {$t$};
+    \draw[->] (0,0) -- (0,1.02) node[above] {$\phi(t)$};
+
+    % Exponential
+    \draw[thick] plot[smooth] coordinates {(0,0.95) (0.6,0.55) (1.2,0.33) (2.0,0.17) (3.0,0.08) (4.2,0.03)};
+    \node[anchor=west] at (4.25,0.035) {\footnotesize exp. simple};
+
+    % Sum of exponentials
+    \draw[thick,dashed] plot[smooth] coordinates {(0,0.88) (0.6,0.60) (1.2,0.42) (2.0,0.28) (3.0,0.16) (4.2,0.07)};
+    \node[anchor=west] at (4.25,0.075) {\footnotesize somme exp.};
+
+    % Power law
+    \draw[thick,dotted] plot[smooth] coordinates {(0,0.75) (0.6,0.57) (1.2,0.45) (2.0,0.33) (3.0,0.24) (4.2,0.16)};
+    \node[anchor=west] at (4.25,0.165) {\footnotesize loi de puissance};
+\end{tikzpicture}
+\caption{Comparaison stylisee de noyaux Hawkes: la queue de memoire differe fortement selon la specification.}
+\label{fig:kernels_compare}
+\end{figure}
 
 \subsection*{6. Statistiques de premier et second ordre}
 \addcontentsline{toc}{subsection}{6. Statistiques de premier et second ordre}
@@ -209,6 +262,34 @@ Si l'on derive des evenements prix a partir de prix echantillonnes trop grossier
 
 Autrement dit, la valeur estimee de $n$ (ou de $\rho(G)$ en multivarie) depend fortement du protocole de reconstruction des evenements.
 
+La Figure~\ref{fig:sampling_effect} illustre cet effet: un meme chemin evenementiel peut produire des diagnostics differents selon la granularite retenue.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=1.15cm,y=1cm]
+    % Top timeline: true events
+    \draw[->] (0,2.4) -- (8.1,2.4) node[right] {\footnotesize temps continu};
+    \node[anchor=east] at (-0.2,2.4) {\footnotesize flux vrai};
+    \foreach \x in {0.6,1.0,1.25,2.9,3.05,3.2,5.5,6.6,6.9,7.4}
+        \draw[thick] (\x,2.2) -- (\x,2.6);
+
+    % Bottom timeline: sampled bins
+    \draw[->] (0,0.9) -- (8.1,0.9) node[right] {\footnotesize temps echantillonne};
+    \node[anchor=east] at (-0.2,0.9) {\footnotesize bins $\Delta$};
+    \foreach \x in {0,1,2,3,4,5,6,7,8}
+        \draw[gray] (\x,0.55) -- (\x,1.25);
+    \foreach \x/\h in {0.5/0.20,1.5/0.30,2.5/0.05,3.5/0.35,4.5/0.05,5.5/0.18,6.5/0.28,7.5/0.12}
+        \fill[black!25] (\x-0.35,0.9) rectangle (\x+0.35,0.9+\h);
+
+    \draw[dashed] (1.25,2.15) -- (1.25,1.25);
+    \draw[dashed] (3.05,2.15) -- (3.05,1.25);
+    \node[align=left] at (6.1,2.0) {\footnotesize grappes courtes visibles\\\footnotesize en temps continu};
+    \node[align=left] at (6.2,0.3) {\footnotesize apres binning: signal lisse\\\footnotesize et information locale perdue};
+\end{tikzpicture}
+\caption{Impact stylise du sampling et du binning: la representation agregee peut lisser les clusters et deformer l'endogeneite estimee.}
+\label{fig:sampling_effect}
+\end{figure}
+
 \subsubsection*{8.3 Binning et estimation non parametrique}
 Les methodes basees sur covariance utilisent souvent des increments sur des pas $\Delta$. Le choix de $\Delta$ agit comme un filtre:
 \begin{itemize}[leftmargin=1.2cm]
@@ -231,7 +312,7 @@ Deux logiques de simulation sont classiques:
 Dans les deux cas, le \enquote{sampling output} (par exemple conversion en series a pas fixe) modifie la perception des clusters. Une bonne pratique est de conserver le chemin evenementiel natif, puis de deriver ensuite les frequences agregees.
 
 \subsubsection*{8.6 Conclusion intermediaire sur le sampling}
-Le message important est le suivant: l'endogeneite n'est pas une grandeur absolue detachée de la mesure ; elle est \emph{mesuree} sous un protocole de sampling donne. Comparer deux etudes sans harmoniser ce protocole peut conduire a des conclusions contradictoires.
+Le message important est le suivant: l'endogeneite n'est pas une grandeur absolue detachee de la mesure ; elle est \emph{mesuree} sous un protocole de sampling donne. Comparer deux etudes sans harmoniser ce protocole peut conduire a des conclusions contradictoires.
 
 \subsection*{9. Principaux resultats empiriques du papier}
 \addcontentsline{toc}{subsection}{9. Principaux resultats empiriques du papier}
@@ -324,12 +405,49 @@ Le risque est de discuter longuement la theorie Hawkes alors que l'incertitude d
     \item les limites du sampling/protocole empirique.
 \end{enumerate}
 
+Une autre maniere de visualiser ce risque est de comparer des matrices d'excitation estimees (Figure~\ref{fig:heatmap_stylized}): des changements de pretraitement peuvent modifier l'intensite apparente de certains liens.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+    % Left matrix title
+    \node[anchor=west] at (0,4.55) {\footnotesize Protocole A (event time fin)};
+    % Left matrix 4x4
+    \foreach \i/\j/\c in {
+        0/0/80,0/1/45,0/2/20,0/3/10,
+        1/0/35,1/1/75,1/2/30,1/3/12,
+        2/0/15,2/1/25,2/2/70,2/3/40,
+        3/0/8,3/1/12,3/2/33,3/3/65}
+    {
+        \fill[black!\c] (\j,4-\i) rectangle (\j+0.9,3.1-\i);
+        \draw[black] (\j,4-\i) rectangle (\j+0.9,3.1-\i);
+    }
+    \node at (1.8,2.6) {\footnotesize $\widehat{G}^{(A)}$};
+
+    % Right matrix title
+    \node[anchor=west] at (5.2,4.55) {\footnotesize Protocole B (binning large)};
+    % Right matrix 4x4
+    \foreach \i/\j/\c in {
+        0/0/70,0/1/25,0/2/10,0/3/5,
+        1/0/20,1/1/68,1/2/14,1/3/6,
+        2/0/9,2/1/13,2/2/63,2/3/20,
+        3/0/5,3/1/8,3/2/18,3/3/58}
+    {
+        \fill[black!\c] (5.2+\j,4-\i) rectangle (6.1+\j,3.1-\i);
+        \draw[black] (5.2+\j,4-\i) rectangle (6.1+\j,3.1-\i);
+    }
+    \node at (7.0,2.6) {\footnotesize $\widehat{G}^{(B)}$};
+\end{tikzpicture}
+\caption{Matrices d'excitation stylisees: selon le protocole de sampling/pretraitement, la force relative des liens peut varier sensiblement.}
+\label{fig:heatmap_stylized}
+\end{figure}
+
 \subsection*{5. Critique 4 --- Grande dimension et regularisation}
 \addcontentsline{toc}{subsection}{5. Critique 4 --- Grande dimension et regularisation}
 
 Si l'on modele $d$ composantes, il faut estimer potentiellement $d^2$ noyaux. Pour des modeles riches, la charge parametrique devient rapidement enorme.
 
-Les solutions pratiques passent par regularisation (sparsity, low-rank, penalites groupées). Mais ces choix imposent une geometrie \emph{a priori} des interactions, qui peut orienter les conclusions economiques. En d'autres termes, la carte d'excitation finale est parfois autant un produit de la penalite choisie que des donnees elles-memes.
+Les solutions pratiques passent par regularisation (sparsity, low-rank, penalites groupees). Mais ces choix imposent une geometrie \emph{a priori} des interactions, qui peut orienter les conclusions economiques. En d'autres termes, la carte d'excitation finale est parfois autant un produit de la penalite choisie que des donnees elles-memes.
 
 \subsection*{6. Critique 5 --- Validation economique hors echantillon}
 \addcontentsline{toc}{subsection}{6. Critique 5 --- Validation economique hors echantillon}
@@ -460,7 +578,7 @@ Le choix peut changer significativement les asymetries buy$\rightarrow$sell et s
 L'intensite de fond n'est pas constante sur la journee. Sans deseasonnalisation, les noyaux absorbent partiellement cette variation deterministe, ce qui biaise l'endogeneite.
 
 \paragraph{12.5 Regles de comparaison entre etudes}
-Pour comparer deux calibrages Hawkes de facon honnête, je recommande de publier:
+Pour comparer deux calibrages Hawkes de facon honnete, je recommande de publier:
 \begin{itemize}[leftmargin=1.2cm]
     \item protocole de construction des evenements ;
     \item resolution temporelle et gestion des ties ;
